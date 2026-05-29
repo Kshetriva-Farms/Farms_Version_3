@@ -350,7 +350,7 @@ const translations = {
         categoryComingSoonSub: "Sorry, no fresh harvest in this category today. Please check back later!",
 
         // Phase 1: Min Order
-        minOrderText: "Add ₹{amt} more to meet minimum order of ₹{min}",
+        minOrderText: "Add {n} more item(s) to meet minimum order of 2 items",
 
         // Phase 1: Window Closed
         windowClosedText: "Ordering opens Friday 9 AM. You can browse and build your cart now.",
@@ -496,7 +496,7 @@ const translations = {
         categoryComingSoon: "త్వరలో రాబోతోంది",
         categoryComingSoonSub: "క్షమించండి, ఈ విభాగంలో ఈరోజు తాజా పంట అందుబాటులో లేదు. దయచేసి తర్వాత సందర్శించండి!",
 
-        minOrderText: "కనీస ఆర్డర్ ₹{min} చేరుకోవడానికి ₹{amt} మరింత జోడించండి",
+        minOrderText: "కనీస ఆర్డర్ 2 వస్తువులు చేరుకోవడానికి మరో {n} వస్తువులను జోడించండి",
         windowClosedText: "ఆర్డరింగ్ శుక్రవారం 9 AM న తెరుచుకుంటుంది. మీరు ఇప్పుడు బ్రౌజ్ చేయవచ్చు.",
         kattaTooltip: "1 కట్ట ≈ తాజా కట్ట బండిల్",
 
@@ -731,34 +731,81 @@ function applyLanguage() {
     if (recResumeBtn) recResumeBtn.textContent = dict.recoveryBtnResume;
 }
 
-// Convert GitHub HTML blob image URLs to raw viewable URLs
+// Convert GitHub HTML view/edit image URLs to raw viewable URLs
 function cleanGitHubImageUrl(url) {
     if (!url) return '';
-    let cleanUrl = url.trim();
     
-    // Convert github.com/.../blob/... to raw.githubusercontent.com/...
-    const githubRegex = /^https?:\/\/(www\.)?github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/i;
+    // Remove zero-width spaces, invisible characters, and trim
+    let cleanUrl = url.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+    
+    // Decode first to handle double-encoding issues, then encode spaces and special characters properly
+    try {
+        cleanUrl = decodeURI(cleanUrl);
+    } catch (e) {
+        // Ignore decoding errors and proceed with original
+    }
+    
+    // Generalized GitHub file URL matcher (matches blob, raw, edit, blame, etc.)
+    const githubRegex = /^https?:\/\/(www\.)?github\.com\/([^\/]+)\/([^\/]+)\/(blob|raw|edit|blame)\/([^\/]+)\/(.+)$/i;
     const match = cleanUrl.match(githubRegex);
     if (match) {
         const username = match[2];
         const repo = match[3];
-        const branch = match[4];
-        const path = match[5];
-        return `https://raw.githubusercontent.com/${username}/${repo}/${branch}/${path}`;
+        const branch = match[5];
+        let path = match[6];
+        
+        // Strip out common query parameters that could interfere with raw loading (like ?raw=true, ?plain=1)
+        // while keeping the token if it's there
+        const queryIndex = path.indexOf('?');
+        let queryString = '';
+        if (queryIndex !== -1) {
+            const params = new URLSearchParams(path.substring(queryIndex));
+            path = path.substring(0, queryIndex);
+            
+            // Keep token if it exists (for private repos)
+            if (params.has('token')) {
+                queryString = `?token=${params.get('token')}`;
+            }
+        }
+        
+        // Ensure path and branch are properly URI encoded (especially spaces)
+        const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        const encodedBranch = branch.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        
+        return `https://raw.githubusercontent.com/${username}/${repo}/${encodedBranch}/${encodedPath}${queryString}`;
     }
     
-    // Convert github.com/.../raw/... to raw.githubusercontent.com/...
-    const githubRawRegex = /^https?:\/\/(www\.)?github\.com\/([^\/]+)\/([^\/]+)\/raw\/([^\/]+)\/(.+)$/i;
-    const rawMatch = cleanUrl.match(githubRawRegex);
+    // Also handle raw.githubusercontent.com URLs directly to ensure they are encoded and cleaned
+    const rawContentRegex = /^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/i;
+    const rawMatch = cleanUrl.match(rawContentRegex);
     if (rawMatch) {
-        const username = rawMatch[2];
-        const repo = rawMatch[3];
-        const branch = rawMatch[4];
-        const path = rawMatch[5];
-        return `https://raw.githubusercontent.com/${username}/${repo}/${branch}/${path}`;
+        const username = rawMatch[1];
+        const repo = rawMatch[2];
+        const branch = rawMatch[3];
+        let path = rawMatch[4];
+        
+        const queryIndex = path.indexOf('?');
+        let queryString = '';
+        if (queryIndex !== -1) {
+            const params = new URLSearchParams(path.substring(queryIndex));
+            path = path.substring(0, queryIndex);
+            if (params.has('token')) {
+                queryString = `?token=${params.get('token')}`;
+            }
+        }
+        
+        const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        const encodedBranch = branch.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        
+        return `https://raw.githubusercontent.com/${username}/${repo}/${encodedBranch}/${encodedPath}${queryString}`;
     }
     
-    return cleanUrl;
+    // For local paths or other domains, just encode spaces safely
+    try {
+        return encodeURI(cleanUrl);
+    } catch (e) {
+        return cleanUrl;
+    }
 }
 
 function getTranslatedProduct(product) {
@@ -1355,10 +1402,24 @@ function updateCartUI() {
 
     cartTotalSum.textContent = `₹${finalTotal}`;
 
-    // Phase 1: Minimum order check - REMOVED / DISABLED
+    // Phase 1: Minimum order check - 2 items minimum
     let checkoutBlocked = false;
-    if (minOrderNotice) {
-        minOrderNotice.style.display = 'none';
+    const totalItems = Object.values(cart).reduce((sum, item) => sum + (item.qty || 0), 0);
+    if (totalItems < 2) {
+        if (minOrderNotice) {
+            const itemsNeeded = 2 - totalItems;
+            const textSpan = document.getElementById('minOrderText');
+            if (textSpan) {
+                textSpan.innerHTML = (dict.minOrderText || "Add {n} more item(s) to meet minimum order of 2 items")
+                    .replace('{n}', itemsNeeded);
+            }
+            minOrderNotice.style.display = 'flex';
+        }
+        checkoutBlocked = true;
+    } else {
+        if (minOrderNotice) {
+            minOrderNotice.style.display = 'none';
+        }
     }
 
     // Phase 1: Window closed check
@@ -1422,6 +1483,10 @@ if (cancelConfirmBtn && acceptConfirmBtn) {
 function sendCartWhatsAppOrder() {
     const cartKeys = Object.keys(cart);
     if (cartKeys.length === 0) return;
+
+    // Block checkout if minimum order of 2 items is not met
+    const totalItems = Object.values(cart).reduce((sum, item) => sum + (item.qty || 0), 0);
+    if (totalItems < 2) return;
 
     const isTe = currentLang === 'te';
     const dict = translations[currentLang];

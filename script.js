@@ -1161,9 +1161,10 @@ function getWindowCountdown() {
     }
 
     const diff = targetDate - now;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return { hours, mins, isOpen };
+    return { days, hours, mins, isOpen };
 }
 
 function updateOrderingWindowBanner() {
@@ -1174,18 +1175,25 @@ function updateOrderingWindowBanner() {
     if (!banner || !titleEl || !subtextEl || !countdownEl) return;
 
     const dict = translations[currentLang];
-    const { hours, mins, isOpen } = getWindowCountdown();
+    const { days, hours, mins, isOpen } = getWindowCountdown();
+    
+    let timerText = "";
+    if (days > 0) {
+        timerText = `${days}d ${hours}h ${mins}m`;
+    } else {
+        timerText = `${hours}h ${mins}m`;
+    }
 
     if (isOpen) {
         banner.classList.remove('closed');
         titleEl.textContent = dict.bannerLiveTitle;
         subtextEl.textContent = dict.bannerLiveSubtext;
-        countdownEl.textContent = `${dict.bannerClosesIn} ${hours}h ${mins}m`;
+        countdownEl.textContent = `${dict.bannerClosesIn} ${timerText}`;
     } else {
         banner.classList.add('closed');
         titleEl.textContent = dict.bannerClosedTitle;
         subtextEl.textContent = dict.bannerClosedSubtext;
-        countdownEl.textContent = `${dict.bannerOpensIn} ${hours}h ${mins}m`;
+        countdownEl.textContent = `${dict.bannerOpensIn} ${timerText}`;
     }
 
     // Update harvest date

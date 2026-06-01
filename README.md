@@ -302,3 +302,25 @@ For queries, orders, or partner programs:
 - **Coming Soon Category Placeholders**: Created beautifully designed, animated seedling grids that gracefully fallback if a catalog category tab has no items.
 - **Ultra-Compact Cart UX**: Companded paddings, font sizes, margins, and heights across all cart headers, scrollables, basket indicators, progress widgets, and checkout buttons to maximize vertical product browsing space.
 
+### 🗓️ June 2, 2026
+
+#### 1. 📅 Temporary Early Schedule Transition (Saturday Delivery)
+- **Re-Aligned Ordering Window**: To optimize fresh farm availability and cater to customer demands, shifted the weekly delivery day one day earlier to **Saturday**. 
+- **Active Window Adjustment**: Re-configured the ordering schedule constants in `script.js` to open on **Thursday at 9:00 AM** and close on **Friday at 3:00 PM** (15:00).
+- **Dynamic Harvest Date Calculations**: Replaced hardcoded date strings with a fully dynamic harvest calendar tracking relative to the Thursday opening day, delivering localized date stamps (`en-IN` and `te-IN`).
+- **Bilingual Scheduling Alerts**: Updated static fallbacks and bilingual translation arrays in both English and Telugu to display custom ordering deadlines and Saturday delivery banners seamlessly.
+
+#### 2. ⏳ Day:Hour:Minutes Countdown Timer
+- **High-Fidelity Timer Engine**: Refactored the storefront countdown calculations to parse remaining time into `{ days, hours, mins }`.
+- **Responsive Suffix Display**: Renders the timer as `Xd Yh Zm` for a modern and space-saving aesthetic, dynamically shifting to `Yh Zm` once under the 24-hour mark.
+
+#### 3. 🛒 Updated Smart Minimum Order Rules (Hybrid Checks)
+- **Smart Validation Rules**: Re-aligned cart validations to approve orders if they contain **at least 3 unique products** OR if the final cart value **exceeds ₹99** (amount > 99).
+- **Double-Lock Guards**: Integrated the validation both on the UI cart drawer and programmatically within the checkout action, blocking checkout and rendering custom helper prompts for incomplete orders.
+- **Bilingual Alerts**: Fully localized the warnings for English (`"Minimum order: 3 products or total above ₹99 to checkout."`) and Telugu (`"కనీస ఆర్డర్: 3 ఉత్పత్తులు లేదా మొత్తం ₹99 కంటే ఎక్కువ ఉండాలి."`).
+
+#### 4. ⚙️ Diagnostic Compilation & Cache Invalidation
+- **Syntax Diagnostics**: Verified JavaScript code compilation integrity using Node compiler diagnostics (`node -c`), resolving critical duplicate variable declarations.
+- **Service Worker Cache-Busting**: Bumped the Service Worker cache version key to `kshetriva-farms-cache-v5` in `sw.js` and updated the script reference standard query parameter to `script.js?v=3.2` inside `index.html`. This invalidates the old cached assets instantly across all user devices, ensuring everyone receives the new scheduling and checkout engine immediately.
+
+

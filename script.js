@@ -1201,6 +1201,7 @@ function updateOrderingWindowBanner() {
     if (harvestDateText) {
         const now = new Date();
         const harvestDate = new Date(now);
+        const { openDay } = ORDERING_SCHEDULE;
         harvestDate.setDate(now.getDate() - ((now.getDay() + 7 - openDay) % 7));
         const dateStr = harvestDate.toLocaleDateString(currentLang === 'te' ? 'te-IN' : 'en-IN', { weekday: 'long', month: 'short', day: 'numeric' });
         harvestDateText.textContent = `${dict.harvestUpdated} ${dateStr}`;
